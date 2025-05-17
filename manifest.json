@@ -1,0 +1,19 @@
+{
+    "Name": "Stack Everything Redux (unofficial)",
+    "Author": "ogahalo00",
+    "Version": "1.0.0",
+    "Description": "Enhance stacking in Stardew Valley beyond 999! Customize stacks and simplify item handling.",
+    "UniqueID": "ogahalo00.StackEverythingRedux.unofficial",
+    "EntryDll": "StackEverythingRedux.dll",
+    "MinimumApiVersion": "4.0.0",
+    "UpdateKeys": [
+        "Nexus:",
+        "GitHub:QuangBM138/Stack-Everything-Redux-unofficial"
+    ],
+    "Dependencies": [
+        {
+            "UniqueID": "spacechase0.GenericModConfigMenu",
+            "IsRequired": false
+        }
+    ]
+}

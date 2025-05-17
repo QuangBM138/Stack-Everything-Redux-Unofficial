@@ -1,0 +1,9 @@
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\bin\Debug\net6.0\StackEverythingRedux.deps.json
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\bin\Debug\net6.0\StackEverythingRedux.dll
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\obj\Debug\net6.0\StackEverythingRedux.csproj.AssemblyReference.cache
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\obj\Debug\net6.0\StackEverythingRedux.GeneratedMSBuildEditorConfig.editorconfig
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\obj\Debug\net6.0\StackEverythingRedux.AssemblyInfoInputs.cache
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\obj\Debug\net6.0\StackEverythingRedux.AssemblyInfo.cs
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\obj\Debug\net6.0\StackEverythingRedux.csproj.CoreCompileInputs.cache
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\obj\Debug\net6.0\StackEverythingRedux.sourcelink.json
+D:\CODE-quangbm138\Mod_svd\Stack-Everything-Redux-Unofficial\obj\Debug\net6.0\StackEverythingRedux.dll
