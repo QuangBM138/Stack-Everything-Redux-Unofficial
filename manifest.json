@@ -7,8 +7,8 @@
     "EntryDll": "StackEverythingRedux.dll",
     "MinimumApiVersion": "4.0.0",
     "UpdateKeys": [
-        "Nexus:",
-        "GitHub:QuangBM138/Stack-Everything-Redux-unofficial"
+        "Nexus:34043",
+        "GitHub:QuangBM138/Stack-Everything-Redux-Unofficial"
     ],
     "Dependencies": [
         {
