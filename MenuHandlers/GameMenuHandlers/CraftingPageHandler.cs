@@ -81,7 +81,25 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
             }
 
             MaxAmount = hoverRecipe.getCraftableCount(extraItems);
-            ClickItemLocation = new Point(Game1.getOldMouseX(true), Game1.getOldMouseY(true));
+            
+            // Support both mouse and controller cursor positions
+            if (Game1.options.gamepadControls && Game1.activeClickableMenu != null)
+            {
+                // Use controller cursor position
+                ClickItemLocation = new Point(
+                    (int)Game1.getMouseX(), 
+                    (int)Game1.getMouseY()
+                );
+            }
+            else
+            {
+                // Use mouse position
+                ClickItemLocation = new Point(
+                    Game1.getOldMouseX(true), 
+                    Game1.getOldMouseY(true)
+                );
+            }
+
             return EInputHandled.Consumed;
         }
 

@@ -19,7 +19,13 @@ namespace StackEverythingRedux
     internal static class StaticConfig
     {
         /// <summary>Valid modifier keys to hold while RightClick-ing</summary>
-        internal static readonly SButton[] ModifierKeys = new SButton[] { SButton.LeftShift, SButton.RightShift };
+        internal static readonly SButton[] ModifierKeys = new SButton[] { 
+            SButton.LeftShift, 
+            SButton.RightShift,
+            // Add controller modifier buttons 
+            SButton.LeftTrigger,
+            SButton.RightTrigger
+        };
 
         /// <summary>Delay between new menu appearing & our handler beginning</summary>
         /// <remarks>To allow time for other mods to manipulate inventories</remarks>
