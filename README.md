@@ -24,6 +24,10 @@ With this fix, the SHIFT + Right-Click menu works again for selecting item amoun
   * Buying from shops
   * Crafting or cooking
   * Splitting item stacks
+* 🎮 **Controller Support**: 
+  * Hold LT/RT + Right Stick button to open stack selection
+  * Navigate menus with Left Stick
+  * Press B to cancel/close menus
 * 🔁 Backward compatible with content from the original mod.
 
 ---

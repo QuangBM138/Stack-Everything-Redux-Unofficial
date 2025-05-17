@@ -290,14 +290,15 @@ namespace StackEverythingRedux
             {
                 return;
             }
-            // Forward input to the handler and consumes it while the tooltip is active.
-            // Intercept keyboard input while the tooltip is active so numbers don't change the actively equipped item etc.
-            // TODO: remove null checks if these events are only called subscribed when it's valid
+
+            // Support both mouse right click and controller right stick button
+            bool isRightClickEquivalent = e.Button == SButton.MouseRight || e.Button == SButton.RightStick;
+
             switch (CurrentMenuHandler?.HandleInput(e.Button))
             {
                 case EInputHandled.Handled:
-                    // Obey unless we're hitting 'cancel' keys.
-                    if (e.Button != SButton.Escape)
+                    // Obey unless we're hitting 'cancel' keys
+                    if (e.Button != SButton.Escape && e.Button != SButton.B) // Add B button as cancel
                     {
                         Input.Suppress(e.Button);
                     }
@@ -305,7 +306,6 @@ namespace StackEverythingRedux
                     {
                         CurrentMenuHandler.CloseSplitMenu();
                     }
-
                     break;
 
                 case EInputHandled.Consumed:
@@ -313,11 +313,11 @@ namespace StackEverythingRedux
                     break;
 
                 case EInputHandled.NotHandled:
-                    if (e.Button is SButton.MouseLeft or SButton.MouseRight)
+                    if (e.Button == SButton.MouseLeft || e.Button == SButton.MouseRight || 
+                        e.Button == SButton.LeftStick || e.Button == SButton.RightStick)
                     {
-                        CurrentMenuHandler.CloseSplitMenu(); // click wasn't handled meaning the split menu no longer has focus and should be closed.
+                        CurrentMenuHandler.CloseSplitMenu();
                     }
-
                     break;
             }
         }
