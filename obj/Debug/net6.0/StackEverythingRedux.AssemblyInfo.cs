@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("StackEverythingRedux")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+af737afac967f8d89ab141250b4000d2da08964d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e32c48da166bdce2376f3285aeb5fc8efb43d66a")]
 [assembly: System.Reflection.AssemblyProductAttribute("StackEverythingRedux")]
 [assembly: System.Reflection.AssemblyTitleAttribute("StackEverythingRedux")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

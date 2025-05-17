@@ -1,7 +1,7 @@
 {
     "Name": "Stack Everything Redux (unofficial)",
     "Author": "ogahalo00",
-    "Version": "1.0.0",
+    "Version": "1.0.1",
     "Description": "Enhance stacking in Stardew Valley beyond 999! Customize stacks and simplify item handling.",
     "UniqueID": "ogahalo00.StackEverythingRedux.unofficial",
     "EntryDll": "StackEverythingRedux.dll",

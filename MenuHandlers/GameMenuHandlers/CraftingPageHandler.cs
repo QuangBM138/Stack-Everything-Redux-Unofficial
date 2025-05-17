@@ -1,7 +1,8 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.Inventories;
 using StardewValley.Menus;
+using System;
 
 namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
 {
@@ -42,7 +43,7 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
         }
 
         /// <summary>Tells the handler that the interface recieved the hotkey input.</summary>
-        /// <param name="stackAmount">The default stack amount to display in the split menu.</param>
+        /// <param name="stackAmount">The default stack amount to display in the split menu.</summary>
         /// <returns>If the input was handled or consumed. Generally returns not handled if an invalid item was selected.</returns>
         public override EInputHandled OpenSplitMenu(out int stackAmount)
         {
@@ -89,7 +90,6 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
         /// <param name="amount">The stack size the user requested.</param>
         public override void OnStackAmountEntered(int amount)
         {
-            // Run regular inventory logic if that's what was clicked.
             if (WasInventoryClicked)
             {
                 base.OnStackAmountEntered(amount);
@@ -97,22 +97,25 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
             }
 
             int count = Math.Min(amount, MaxAmount);
-            ISoundBank origSoundBank = Game1.soundBank;
-            for (int i = 0; i < count; ++i)
+            
+            if (count > 0)
             {
-                // Only play sound for the very first RightClick, or else the sound will mix together and sounds horrible
-                if (i > 0)
+                // Lưu trữ soundBank hiện tại 
+                var origSoundBank = Game1.soundBank;
+                
+                try
                 {
-                    Game1.soundBank = null;
+                    // Chỉ phát âm thanh một lần và chỉ khi có soundBank
+                    bool shouldPlaySound = (count == 1) && (origSoundBank != null);
+                    
+                    // Process all items at once
+                    MenuPage.receiveRightClick(ClickItemLocation.X, ClickItemLocation.Y, playSound: shouldPlaySound);
                 }
-
-                MenuPage.receiveRightClick(ClickItemLocation.X, ClickItemLocation.Y, playSound: i == 0);
-                Game1.soundBank = origSoundBank;
-                // NOTE: This nullify-then-restore tactic is needed because as of SDV 1.5.4, CraftingPage.receiveRightClick actually
-                //       *ignores* the playSound parameter; it's supposed to pass that parameter to CraftingPage.clickCraftingRecipe,
-                //       but it doesn't. So the same sound gets layered one atop another with a slight shift, resulting in an overly
-                //       loud and very distorted blip.
-                //       If this oversight is fixed in a future patch, we can remove the nullify-and-restore lines.
+                finally
+                {
+                    // Đảm bảo khôi phục soundBank ban đầu trong mọi trường hợp
+                    Game1.soundBank = origSoundBank;
+                }
             }
         }
     }

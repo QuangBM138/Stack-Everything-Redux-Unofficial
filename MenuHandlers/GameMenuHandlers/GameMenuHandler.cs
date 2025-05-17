@@ -1,6 +1,7 @@
 using StackEverythingRedux.UI;
 using StardewValley;
 using StardewValley.Menus;
+using System;
 
 namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
 {
@@ -15,6 +16,9 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
                 { GameMenu.craftingTab, new CraftingPageHandler() }
             };
 
+        /// <summary>Cache for page handlers.</summary>
+        private readonly Dictionary<int, IGameMenuPageHandler> _handlerCache = new();
+
         /// <summary>The handler for the current tab,</summary>
         private IGameMenuPageHandler CurrentPageHandler = null;
 
@@ -26,6 +30,9 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
 
         /// <summary>The native list of clickable tabs, used for checking if they were clicked.</summary>
         private List<ClickableComponent> Tabs;
+
+        private DateTime _lastUpdate = DateTime.MinValue;
+        private const int UPDATE_THROTTLE_MS = 16; // ~ 60fps
 
         /// <summary>Null constructor that currently only invokes the base null constructor</summary>
         public GameMenuHandler()
@@ -143,18 +150,26 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
         private bool ChangeTabs(int newTab)
         {
             if (PreviousTab == newTab)
-            {
                 return true;
-            }
 
             CloseCurrentHandler();
 
+            // Try get from cache first
+            if (_handlerCache.TryGetValue(newTab, out IGameMenuPageHandler cachedHandler))
+            {
+                CurrentPageHandler = cachedHandler;
+                PreviousTab = newTab;
+                return true;
+            }
+
             if (!PageHandlers.TryGetValue(newTab, out IGameMenuPageHandler pageHandler))
             {
-                // Please note that this is NOT AN ERROR
                 Log.TraceIfD($"[{nameof(GameMenuHandler)}.{nameof(ChangeTabs)}] No handler for tab {newTab}");
                 return false;
             }
+
+            // Cache the handler
+            _handlerCache[newTab] = pageHandler;
 
             Log.TraceIfD($"[{nameof(GameMenuHandler)}.{nameof(ChangeTabs)}] Found a handler for tab {newTab} : {pageHandler}");
 
@@ -182,6 +197,16 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
             CurrentPageHandler?.Close();
             CurrentPageHandler = null;
             PreviousTab = INVALID_TAB;
+        }
+
+        public override void Update()
+        {
+            // Add throttling to limit update frequency  
+            if ((DateTime.Now - _lastUpdate).TotalMilliseconds < UPDATE_THROTTLE_MS)
+                return;
+
+            base.Update();
+            _lastUpdate = DateTime.Now;
         }
     }
 }
