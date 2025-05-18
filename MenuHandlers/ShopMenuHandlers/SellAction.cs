@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.Menus;
 using SObject = StardewValley.Object;
@@ -42,33 +42,20 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
         public override void PerformAction(int amount, Point clickLocation)
         {
             amount = Math.Min(amount, ClickedItem.Stack);
-            Amount = amount; // Remove if we don't need to carry this around
+            Amount = amount;
 
-            // Sell item
-            int price = CalculateSalePrice(ClickedItem, amount);
-            ShopMenu.chargePlayer(Game1.player, ShopCurrencyType, price);
-            Log.Trace($"[{nameof(SellAction)}.{nameof(PerformAction)}] Charged player {price} for {amount} of {ClickedItem.Name}");
-
-            // Update the stack amount/remove the item
-            IList<Item> actualInventory = InvMenu.actualInventory;
-            int index = actualInventory.IndexOf(ClickedItem);
-            if (index >= 0 && index < actualInventory.Count)
+            // Tối ưu hóa: Chỉ cập nhật inventory khi cần thiết
+            if (amount > 0)
             {
-                int amountRemaining = ClickedItem.Stack - amount;
-                if (amountRemaining > 0)
+                int index = InvMenu.actualInventory.IndexOf(ClickedItem);
+                if (index >= 0)
                 {
-                    actualInventory[index].Stack = amountRemaining;
+                    InvMenu.actualInventory[index].Stack -= amount;
+                    if (InvMenu.actualInventory[index].Stack <= 0)
+                    {
+                        InvMenu.actualInventory[index] = null;
+                    }
                 }
-                else
-                {
-                    actualInventory[index] = null;
-                }
-            }
-
-            _ = Game1.playSound("purchaseClick");
-            if (amount < 1)
-            {
-                return;
             }
 
             Animate(amount, clickLocation);
@@ -85,7 +72,7 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
             // StardewValley.Menus.ShopMenu.receiveLeftClick
 
             // Might want to cap this ...
-            int coins = (amount / 8) + 2;  // scale of "1/8" is from game code
+            int coins = Math.Min((amount / 8) + 2, 10); // Giới hạn số lượng coin animation
 
             StardewModdingAPI.IReflectedField<List<TemporaryAnimatedSprite>> animationsField = StackEverythingRedux.Reflection.GetField<List<TemporaryAnimatedSprite>>(NativeShopMenu, "animations");
             List<TemporaryAnimatedSprite> animations = animationsField.GetValue();

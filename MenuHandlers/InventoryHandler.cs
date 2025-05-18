@@ -33,6 +33,9 @@ namespace StackEverythingRedux.MenuHandlers
         /// <summary>Currently hovered item in the inventory.</summary>
         private Item HoveredItem;
 
+        /// <summary>Cached inventory items.</summary>
+        private IList<Item> CachedInventoryItems;
+
         /// <summary>Null constructor that currently only invokes the base null constructor</summary>
         public InventoryHandler()
         {
@@ -45,6 +48,7 @@ namespace StackEverythingRedux.MenuHandlers
             Debug.Assert(inventoryMenu is not null);
             NativeInventoryMenu = inventoryMenu;
             HoveredItemField = hoveredItemField;
+            CachedInventoryItems = new List<Item>(inventoryMenu.actualInventory); // Cache inventory
 
             // Create the bounds around the inventory
             Rectangle first = Inventory[0].bounds;
@@ -54,6 +58,12 @@ namespace StackEverythingRedux.MenuHandlers
                 first.Y,
                 last.X + last.Width - first.X,
                 last.Y + last.Height - first.Y);
+        }
+
+        /// <summary>Updates the cached inventory items.</summary>
+        public void UpdateInventoryCache()
+        {
+            CachedInventoryItems = new List<Item>(NativeInventoryMenu.actualInventory);
         }
 
         /// <summary>Broad phase check to see if the inventory interface was clicked.</summary>
@@ -151,7 +161,7 @@ namespace StackEverythingRedux.MenuHandlers
 
         /// <summary>Runs the default shift+right-click behavior on the selected item.</summary>
         public void CancelSplit()
-        {
+       {
             if (Initialized && HoveredItem != null)
             {
                 // Split with the default amount to simulate the default behaviour

@@ -31,6 +31,7 @@ namespace StackEverythingRedux.MenuHandlers
         /// <summary>Tracks if the menu is currently open.</summary>
         private bool IsMenuOpen = false;
 
+        private int updateCounter = 0;
 
         /// <summary>Null constructor that currently only does logging if DEBUG</summary>
         public BaseMenuHandler()
@@ -82,14 +83,10 @@ namespace StackEverythingRedux.MenuHandlers
         /// <summary>Runs on tick for handling things like highlighting text.</summary>
         public virtual void Update()
         {
-            if (Game1.mouseClickPolling < GetRightClickPollingInterval())
+            updateCounter++;
+            if (updateCounter % 10 == 0) // Ch? c?p nh?t m?i 10 tick
             {
                 SplitMenu?.Update();
-            }
-            else if (SplitMenu != null)
-            {
-                // Close the menu if the interval is reached as the player likely wants its regular behavior
-                _ = CancelMove();
             }
         }
 
