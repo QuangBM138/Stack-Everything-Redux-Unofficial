@@ -1,3 +1,4 @@
+//Log.cs
 using StardewModdingAPI;
 
 namespace StackEverythingRedux
@@ -25,7 +26,7 @@ namespace StackEverythingRedux
             StackEverythingRedux.Instance.Monitor.Log(msg, LogLevel.Info);
         }
 
-        public static void Debug(string msg)
+      public static void Debug(string msg)
         {
             StackEverythingRedux.Instance.Monitor.Log(msg, LogLevel.Debug);
         }

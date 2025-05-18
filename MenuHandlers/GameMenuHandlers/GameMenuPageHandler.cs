@@ -1,3 +1,4 @@
+//GameMenuPageHandler.cs
 using StardewValley;
 using StardewValley.Menus;
 

@@ -1,3 +1,4 @@
+//HandlerMapping.cs
 using StackEverythingRedux.MenuHandlers;
 
 namespace StackEverythingRedux

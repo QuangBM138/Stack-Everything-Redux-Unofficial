@@ -1,3 +1,4 @@
+//IGameMenuPageHandler.cs
 using StardewValley.Menus;
 
 namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers

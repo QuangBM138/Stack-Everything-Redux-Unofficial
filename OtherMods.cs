@@ -1,3 +1,4 @@
+//OtherMods.cs
 using StackEverythingRedux.MenuHandlers;
 using System.Collections.Generic; // Ensure this is included
 

@@ -1,3 +1,4 @@
+//CraftingPageHandler.cs
 using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.Inventories;

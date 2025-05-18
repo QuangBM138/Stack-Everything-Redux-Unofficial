@@ -68,12 +68,20 @@ namespace StackEverythingRedux.Network
                 setValue: value => Config.EnableStackSplitRedux = value
             );
 
-            genericModConfigApi.AddNumberOption(
+            genericModConfigApi.AddBoolOption(
                 mod,
-                name: () => Translations.Config_DefaultCraftingAmount_Name,
-                tooltip: () => Translations.Config_DefaultCraftingAmount_Tooltip,
-                getValue: () => Config.DefaultCraftingAmount,
-                setValue: value => Config.DefaultCraftingAmount = value
+                name: () => "Enable Stack Split in Crafting",
+                tooltip: () => "Enable or disable stack splitting in the crafting menu.",
+                getValue: () => Config.EnableStackSplitInCrafting,
+                setValue: value => Config.EnableStackSplitInCrafting = value
+            );
+
+            genericModConfigApi.AddBoolOption(
+                mod,
+                name: () => "Enable Stack Split in Shop",
+                tooltip: () => "Enable or disable stack splitting in the shop menu.",
+                getValue: () => Config.EnableStackSplitInShop,
+                setValue: value => Config.EnableStackSplitInShop = value
             );
 
             genericModConfigApi.AddNumberOption(

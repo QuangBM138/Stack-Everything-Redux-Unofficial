@@ -12,17 +12,23 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
         private const int FULL_TILE = Game1.tileSize;
 
         private readonly Guid GUID = Guid.NewGuid();
+        private readonly int ClickedItemIndex; // Cached index of ClickedItem
+        private readonly float SellPercentage; // Cached sell percentage
+        private readonly List<TemporaryAnimatedSprite> Animations; // Cached animations list
 
         /// <summary>Constructs an instance.</summary>
         /// <param name="menu">The native shop menu.</param>
-        /// <param name="item">The item to buy.</param>
-        public SellAction(ShopMenu menu, Item item)
+        /// <param name="item">The item to sell.</param>
+        /// <param name="itemIndex">The index of the item in the inventory.</param>
+        public SellAction(ShopMenu menu, Item item, int itemIndex)
             : base(menu, item)
         {
-            // Default amount
-            // +1 before /2 ensures we get the number rounded UP
-            Amount = (ClickedItem.Stack + 1) / 2;
-            Log.TraceIfD($"[{nameof(SellAction)}] Instantiated for shop {menu} item {item}, GUID = {GUID}");
+            ClickedItemIndex = itemIndex;
+            Amount = (ClickedItem.Stack + 1) / 2; // Default amount, rounded up
+            SellPercentage = StackEverythingRedux.Reflection.GetField<float>(menu, "sellPercentage").GetValue();
+            Animations = StackEverythingRedux.Reflection.GetField<List<TemporaryAnimatedSprite>>(menu, "animations").GetValue();
+
+            Log.TraceIfD($"[{nameof(SellAction)}] Instantiated for shop {menu} item {item} at index {itemIndex}, GUID = {GUID}");
         }
 
         ~SellAction()
@@ -33,60 +39,93 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
         /// <summary>Verifies the conditions to perform the action.</summary>
         public override bool CanPerformAction()
         {
+            if (!StackEverythingRedux.Config.EnableStackSplitInShop)
+            {
+                return false;
+            }
+
             return NativeShopMenu.highlightItemToSell(ClickedItem) && ClickedItem.Stack > 1;
         }
 
-        /// <summary>Does the action.</summary>
-        /// <param name="amount">Number of items.</param>
-        /// <param name="clickLocation">Where the player clicked (i.e., when selecting item to split).</param>
+        /// <summary>Performs the sell action.</summary>
         public override void PerformAction(int amount, Point clickLocation)
         {
+            System.Diagnostics.Stopwatch sw = null;
+            long inventoryMs = 0;
+            long animateMs = 0;
+
+            if (StackEverythingRedux.Config.DebuggingMode)
+            {
+                sw = System.Diagnostics.Stopwatch.StartNew();
+                var swInv = System.Diagnostics.Stopwatch.StartNew();
+                PerformActionInternal(amount, clickLocation);
+                swInv.Stop();
+                inventoryMs = swInv.ElapsedMilliseconds;
+                sw.Stop();
+                Log.Trace($"[DEBUG] {nameof(PerformAction)}: inventory={inventoryMs}ms, animate={animateMs}ms, total={sw.ElapsedMilliseconds}ms");
+            }
+            else
+            {
+                PerformActionInternal(amount, clickLocation);
+            }
+        }
+
+        private void PerformActionInternal(int amount, Point clickLocation)
+        {
+            System.Diagnostics.Stopwatch swAnim = null;
+            long animateMs = 0;
+
             amount = Math.Min(amount, ClickedItem.Stack);
             Amount = amount;
 
-            // Tối ưu hóa: Chỉ cập nhật inventory khi cần thiết
-            if (amount > 0)
+            if (amount <= 0)
             {
-                int index = InvMenu.actualInventory.IndexOf(ClickedItem);
-                if (index >= 0)
+                return;
+            }
+
+            // Update inventory
+            var inventory = InvMenu.actualInventory;
+            if (ClickedItemIndex >= 0 && ClickedItemIndex < inventory.Count && object.ReferenceEquals(inventory[ClickedItemIndex], ClickedItem))
+            {
+                var item = inventory[ClickedItemIndex];
+                item.Stack -= amount;
+                if (item.Stack <= 0)
                 {
-                    InvMenu.actualInventory[index].Stack -= amount;
-                    if (InvMenu.actualInventory[index].Stack <= 0)
-                    {
-                        InvMenu.actualInventory[index] = null;
-                    }
+                    inventory[ClickedItemIndex] = null;
                 }
             }
 
-            Animate(amount, clickLocation);
+            // Animate
+            if (StackEverythingRedux.Config.DebuggingMode)
+            {
+                swAnim = System.Diagnostics.Stopwatch.StartNew();
+                Animate(amount, clickLocation);
+                swAnim.Stop();
+                animateMs = swAnim.ElapsedMilliseconds;
+            }
+            else
+            {
+                Animate(amount, clickLocation);
+            }
         }
 
-        /// <summary>
-        /// Create animation of coins flying from the inventory slot to the shop moneybox
-        /// </summary>
-        /// <param name="amount">Number of items sold; determines the number of flying coins</param>
-        /// <param name="clickLocation">Original click location (selection of item to sell).</param>
-        public void Animate(int amount, Point clickLocation)
+        /// <summary>Creates animation of coins flying from the inventory slot to the shop moneybox.</summary>
+        private void Animate(int amount, Point clickLocation)
         {
-            // This procedure is copied/adapted from game code
-            // StardewValley.Menus.ShopMenu.receiveLeftClick
+            if (amount > 50)
+            {
+                return; // Skip animation for large amounts
+            }
 
-            // Might want to cap this ...
-            int coins = Math.Min((amount / 8) + 2, 10); // Giới hạn số lượng coin animation
-
-            StardewModdingAPI.IReflectedField<List<TemporaryAnimatedSprite>> animationsField = StackEverythingRedux.Reflection.GetField<List<TemporaryAnimatedSprite>>(NativeShopMenu, "animations");
-            List<TemporaryAnimatedSprite> animations = animationsField.GetValue();
-
+            int coins = Math.Min((amount / 8) + 2, 10); // Cap at 10 coins
             Vector2 snappedPosition = InvMenu.snapToClickableComponent(clickLocation.X, clickLocation.Y);
-
-            Vector2 anim_pos = snappedPosition + new Vector2(HALF_TILE, HALF_TILE);
-
+            Vector2 animPos = snappedPosition + new Vector2(HALF_TILE, HALF_TILE);
             Point startingPoint = new((int)snappedPosition.X + HALF_TILE, (int)snappedPosition.Y + HALF_TILE);
 
-            int pos_x = NativeShopMenu.xPositionOnScreen;
-            int pos_y = NativeShopMenu.yPositionOnScreen;
+            int posX = NativeShopMenu.xPositionOnScreen;
+            int posY = NativeShopMenu.yPositionOnScreen;
             int height = NativeShopMenu.height;
-            Vector2 endingPoint = new(pos_x - 36, pos_y + height - InvMenu.height - 16);
+            Vector2 endingPoint = new(posX - 36, posY + height - InvMenu.height - 16);
 
             Vector2 accel1 = new(0f, 0.5f);
             Vector2 accel2 = Utility.getVelocityTowardPoint(startingPoint, endingPoint, 0.5f);
@@ -94,79 +133,65 @@ namespace StackEverythingRedux.MenuHandlers.ShopMenuHandlers
 
             for (int j = 0; j < coins; j++)
             {
-                animations.Add(
-                    new TemporaryAnimatedSprite(
-                        textureName: Game1.debrisSpriteSheetName,
-                        sourceRect: new Rectangle(Game1.random.Next(2) * SMALL_TILE, FULL_TILE, SMALL_TILE, SMALL_TILE),
-                        animationInterval: 9999f,
-                        animationLength: 1,
-                        numberOfLoops: 999,
-                        position: anim_pos,
-                        flicker: false,
-                        flipped: false
-                        )
-                    {
-                        alphaFade = 0.025f,
-                        motion = new Vector2(Game1.random.Next(-3, 4), -4f),
-                        acceleration = accel1,
-                        delayBeforeAnimationStart = j * 25,
-                        scale = 2f
-                    }
-                    );
-                animations.Add(
-                    new TemporaryAnimatedSprite(
-                        textureName: Game1.debrisSpriteSheetName,
-                        sourceRect: new Rectangle(Game1.random.Next(2) * SMALL_TILE, FULL_TILE, SMALL_TILE, SMALL_TILE),
-                        animationInterval: 9999f,
-                        animationLength: 1,
-                        numberOfLoops: 999,
-                        position: anim_pos,
-                        flicker: false,
-                        flipped: false
-                        )
-                    {
-                        alphaFade = 0.025f,
-                        motion = motion2,
-                        acceleration = accel2,
-                        delayBeforeAnimationStart = j * 50,
-                        scale = 4f
-                    }
-                    );
-            }  // end_for j
+                Animations.Add(new TemporaryAnimatedSprite(
+                    textureName: Game1.debrisSpriteSheetName,
+                    sourceRect: new Rectangle(Game1.random.Next(2) * SMALL_TILE, FULL_TILE, SMALL_TILE, SMALL_TILE),
+                    animationInterval: 9999f,
+                    animationLength: 1,
+                    numberOfLoops: 999,
+                    position: animPos,
+                    flicker: false,
+                    flipped: false
+                )
+                {
+                    alphaFade = 0.025f,
+                    motion = new Vector2(Game1.random.Next(-3, 4), -4f),
+                    acceleration = accel1,
+                    delayBeforeAnimationStart = j * 25,
+                    scale = 2f
+                });
 
-            // Not sure if this is needed, but just to be safe
-            animationsField.SetValue(animations);
+                Animations.Add(new TemporaryAnimatedSprite(
+                    textureName: Game1.debrisSpriteSheetName,
+                    sourceRect: new Rectangle(Game1.random.Next(2) * SMALL_TILE, FULL_TILE, SMALL_TILE, SMALL_TILE),
+                    animationInterval: 9999f,
+                    animationLength: 1,
+                    numberOfLoops: 999,
+                    position: animPos,
+                    flicker: false,
+                    flipped: false
+                )
+                {
+                    alphaFade = 0.025f,
+                    motion = motion2,
+                    acceleration = accel2,
+                    delayBeforeAnimationStart = j * 50,
+                    scale = 4f
+                });
+            }
         }
 
-        // TODO: verify this is correct and Item.sellToShopPrice doesn't do the same thing
-        /// <summary>Calculates the sale price of an item based on the algorithms used in the game source.</summary>
-        /// <param name="item">Item to get the price for.</param>
-        /// <param name="amount">Number being sold.</param>
-        /// <returns>The sale price of the item * amount.</returns>
+        /// <summary>Calculates the sale price of an item.</summary>
         private int CalculateSalePrice(Item item, int amount)
         {
-            // Formula from ShopMenu.cs
-            float sellPercentage = StackEverythingRedux.Reflection.GetField<float>(NativeShopMenu, "sellPercentage").GetValue();
-
-            float pricef = sellPercentage * amount;
-            pricef *= item is SObject sobj
-                ? sobj.sellToStorePrice()
-                : item.salePrice() * 0.5f
-                ;
-
-            // Invert so we give the player money instead (shitty but it's what the game does).
-            return -(int)pricef;
+            float price = SellPercentage * amount;
+            price *= item is SObject sobj ? sobj.sellToStorePrice() : item.salePrice() * 0.5f;
+            return -(int)price; // Negative to give money to the player
         }
 
         /// <summary>Creates an instance of the action.</summary>
-        /// <param name="shopMenu">Native shop menu.</param>
-        /// <param name="mouse">Mouse position.</param>
-        /// <returns>The instance or null if no valid item was selected.</returns>
         public static ShopAction Create(ShopMenu shopMenu, Point mouse)
         {
             InventoryMenu inventory = shopMenu.inventory;
-            Item item = inventory.getItemAt(mouse.X, mouse.Y);
-            return item != null ? new SellAction(shopMenu, item) : null;
+            for (int i = 0; i < inventory.actualInventory.Count; i++)
+            {
+                Item item = inventory.actualInventory[i];
+                if (item != null && inventory.getItemAt(mouse.X, mouse.Y) == item)
+                {
+                    return new SellAction(shopMenu, item, i);
+                }
+            }
+            return null;
         }
     }
 }

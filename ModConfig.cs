@@ -1,3 +1,4 @@
+//ModConfig.cs
 using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 
@@ -6,6 +7,8 @@ namespace StackEverythingRedux
     public class ModConfig
     {
         public bool EnableStackSplitRedux { get; set; } = true;
+        public bool EnableStackSplitInCrafting { get; set; } = true; // NEW
+        public bool EnableStackSplitInShop { get; set; } = true;     // NEW
         public int MaxStackingNumber { get; set; } = 999;
         public int DefaultCraftingAmount { get; set; } = 1;
         public int DefaultShopAmount { get; set; } = 5;

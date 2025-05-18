@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
@@ -8,51 +8,117 @@ namespace StackEverythingRedux.MenuHandlers
 {
     public class InventoryHandler
     {
-        /// <summary>If the handler has been initialized yet by calling Init.</summary>
+        /// <summary>If the handler has been initialized.</summary>
         public bool Initialized => NativeInventoryMenu != null;
 
-        /// <summary>Convenience for grabbing native inventory buttons.</summary>
-        private List<ClickableComponent> Inventory => NativeInventoryMenu.inventory;
-
-        /// <summary>Convenience for grabbing native inventory items.</summary>
-        private IList<Item> InventoryItems => NativeInventoryMenu.actualInventory;
-
-        /// <summary>Native inventory.</summary>
+        /// <summary>Native inventory menu.</summary>
         private InventoryMenu NativeInventoryMenu;
 
         /// <summary>Inventory interface bounds.</summary>
         private Rectangle Bounds;
 
-        /// <summary>Where the user clicked so moving </summary>
+        /// <summary>Mouse position where the user clicked to select an item.</summary>
         private int SelectedItemPosition_X;
         private int SelectedItemPosition_Y;
 
-        /// <summary>The hovered item field owned by the parent menu that contains the inventory.</summary>
+        /// <summary>Reflected field for the hovered item owned by the parent menu.</summary>
         private IReflectedField<Item> HoveredItemField;
 
         /// <summary>Currently hovered item in the inventory.</summary>
         private Item HoveredItem;
 
-        /// <summary>Cached inventory items.</summary>
-        private IList<Item> CachedInventoryItems;
+        /// <summary>Cached inventory items to avoid frequent allocations.</summary>
+        private readonly List<Item> CachedInventoryItems = new List<Item>();
 
-        /// <summary>Null constructor that currently only invokes the base null constructor</summary>
+        /// <summary>Tracks the last known inventory state to detect changes.</summary>
+        private int LastInventoryHash;
+
+        /// <summary>Cached count of non-null items in the inventory.</summary>
+        private int NonNullItemCount;
+
         public InventoryHandler()
         {
         }
 
-        /// <summary>This must be called everytime the inventory is opened/resized.</summary>
-        /// <param name="inventoryMenu">Native inventory.</param>
+        /// <summary>Initializes the handler. Must be called when the inventory is opened or resized.</summary>
+        /// <param name="inventoryMenu">Native inventory menu.</param>
+        /// <param name="hoveredItemField">Reflected field for the hovered item.</param>
         public void Init(InventoryMenu inventoryMenu, IReflectedField<Item> hoveredItemField)
         {
-            Debug.Assert(inventoryMenu is not null);
+            Debug.Assert(inventoryMenu != null);
             NativeInventoryMenu = inventoryMenu;
             HoveredItemField = hoveredItemField;
-            CachedInventoryItems = new List<Item>(inventoryMenu.actualInventory); // Cache inventory
 
-            // Create the bounds around the inventory
-            Rectangle first = Inventory[0].bounds;
-            Rectangle last = Inventory.Last().bounds;
+            // Update cache and bounds
+            UpdateInventoryCache();
+            UpdateBounds();
+
+            if (StackEverythingRedux.Config.DebuggingMode)
+            {
+                Log.Trace($"[DEBUG] InventoryHandler.Init: Inventory size = {NonNullItemCount}");
+            }
+        }
+
+        /// <summary>Updates the inventory cache only if the inventory has changed.</summary>
+        public void UpdateInventoryCache()
+        {
+            IList<Item> actualInventory = NativeInventoryMenu.actualInventory;
+            int currentHash = ComputeInventoryHash(actualInventory);
+
+            if (currentHash != LastInventoryHash || CachedInventoryItems.Count != actualInventory.Count)
+            {
+                CachedInventoryItems.Clear();
+                CachedInventoryItems.AddRange(actualInventory);
+                LastInventoryHash = currentHash;
+
+                // Update non-null item count without LINQ
+                NonNullItemCount = 0;
+                for (int i = 0; i < CachedInventoryItems.Count; i++)
+                {
+                    if (CachedInventoryItems[i] != null)
+                    {
+                        NonNullItemCount++;
+                    }
+                }
+
+                if (StackEverythingRedux.Config.DebuggingMode)
+                {
+                    Log.Trace($"[DEBUG] InventoryHandler.UpdateInventoryCache: Inventory size = {NonNullItemCount}");
+                }
+            }
+        }
+
+        /// <summary>Computes a simple hash of the inventory to detect changes.</summary>
+        private int ComputeInventoryHash(IList<Item> inventory)
+        {
+            int hash = 17;
+            for (int i = 0; i < inventory.Count; i++)
+            {
+                Item item = inventory[i];
+                unchecked
+                {
+                    hash = hash * 23 + (item?.GetHashCode() ?? 0);
+                    if (item != null)
+                    {
+                        hash = hash * 23 + item.Stack;
+                    }
+                }
+            }
+            return hash;
+        }
+
+        /// <summary>Updates the bounds of the inventory interface.</summary>
+        private void UpdateBounds()
+        {
+            List<ClickableComponent> inventory = NativeInventoryMenu.inventory;
+            if (inventory.Count == 0)
+            {
+                Bounds = Rectangle.Empty;
+                return;
+            }
+
+            Rectangle first = inventory[0].bounds;
+            Rectangle last = inventory[inventory.Count - 1].bounds;
             Bounds = new Rectangle(
                 first.X,
                 first.Y,
@@ -60,133 +126,129 @@ namespace StackEverythingRedux.MenuHandlers
                 last.Y + last.Height - first.Y);
         }
 
-        /// <summary>Updates the cached inventory items.</summary>
-        public void UpdateInventoryCache()
-        {
-            CachedInventoryItems = new List<Item>(NativeInventoryMenu.actualInventory);
-        }
-
-        /// <summary>Broad phase check to see if the inventory interface was clicked.</summary>
-        /// <param name="mousePos">Mouse position.</param>
+        /// <summary>Checks if the inventory interface was clicked.</summary>
         public bool WasClicked(Point mousePos)
         {
             Debug.Assert(Initialized);
             return Bounds.Contains(mousePos);
         }
 
-        /// <summary>Broad phase check to see if the inventory interface was clicked.</summary>
-        /// <param name="mouseX">Mouse X position.</param>
-        /// <param name="mouseY">Mouse Y position.</param>
+        /// <summary>Checks if the inventory interface was clicked.</summary>
         public bool WasClicked(int mouseX, int mouseY)
         {
             Debug.Assert(Initialized);
             return Bounds.Contains(mouseX, mouseY);
         }
 
-        /// <summary>Stores the data needed to be able to split an item stack. This must be called before CanSplitSelectedItem and SplitSelectedItem.</summary>
-        /// <param name="mouseX">Mouse x position.</param>
-        /// <param name="mouseY">Mouse y position.</param>
+        /// <summary>Stores data needed to split an item stack.</summary>
         public void SelectItem(int mouseX, int mouseY)
         {
             Debug.Assert(Initialized);
-
             SelectedItemPosition_X = mouseX;
             SelectedItemPosition_Y = mouseY;
             HoveredItem = HoveredItemField.GetValue();
         }
 
-        /// <summary>Checks if the selected item can be split. SelectItem must be called first.</summary>
+        /// <summary>Checks if the selected item can be split.</summary>
         public bool CanSplitSelectedItem()
         {
             Debug.Assert(Initialized);
-
             Item hoveredItem = HoveredItem;
             Item heldItem = Game1.player.CursorSlotItem;
 
-            return hoveredItem is not null
-&& hoveredItem.Stack > 1
-&& (heldItem is null || (hoveredItem.canStackWith(heldItem) && heldItem.Stack < heldItem.maximumStackSize()));
+            return hoveredItem != null
+                && hoveredItem.Stack > 1
+                && (heldItem == null || (hoveredItem.canStackWith(heldItem) && heldItem.Stack < heldItem.maximumStackSize()));
         }
 
-        /// <summary>Updates the stack values of the hovered and held item.</summary>
-        /// <param name="stackAmount">The amount to be added to the held amount.</param>
+        /// <summary>Splits the selected item stack.</summary>
         public void SplitSelectedItem(int stackAmount)
         {
-            Debug.Assert(HoveredItemField != null);
+            Debug.Assert(Initialized && HoveredItemField != null);
+
+            Stopwatch sw = null;
+            int beforeCount = NonNullItemCount;
+
+            if (StackEverythingRedux.Config.DebuggingMode)
+            {
+                sw = Stopwatch.StartNew();
+            }
 
             Item hoveredItem = HoveredItem;
-            int hoveredItemCount = HoveredItem.Stack;  // Grab & hold the value
+            int hoveredItemCount = hoveredItem.Stack;
             int maxStack = hoveredItem.maximumStackSize();
 
             Item heldItem = Game1.player.CursorSlotItem;
-            int heldItemCount = heldItem?.Stack ?? 0;  // Grab & hold the value
+            int heldItemCount = heldItem?.Stack ?? 0;
 
-            // Run native click code to get the selected item
-            // This is why we need to grab & hold the values above: rightClick immediately decreases HoveredItem.Stack and increases heldItem.Stack
+            // Run native right-click to pick up the item
             heldItem = NativeInventoryMenu.rightClick(SelectedItemPosition_X, SelectedItemPosition_Y, heldItem);
             Debug.Assert(heldItem != null);
 
-            // Clamp the amount to the total number of items
+            // Clamp stack amount
             stackAmount = Math.Min(Math.Max(0, stackAmount), hoveredItemCount);
-            // If we couldn't grab all that we wanted then only subtract the amount we were able to grab
             if (heldItemCount + stackAmount > maxStack)
             {
                 stackAmount = maxStack - heldItemCount;
             }
 
             heldItemCount += stackAmount;
-
-            // Perform the reduction
             hoveredItemCount -= stackAmount;
+
             if (hoveredItemCount <= 0)
             {
-                // Remove the item from the inventory if it's now all being held.
                 RemoveItemFromInventory(hoveredItem);
             }
             else
             {
-                // Commit the manipulated hovered value, overwriting changes by rightClick() above
-                HoveredItem.Stack = hoveredItemCount;
+                hoveredItem.Stack = hoveredItemCount;
             }
 
-            // Commit the new heldItemCount, overwriting changes by rightClick() above
             heldItem.Stack = heldItemCount;
-
-            // Update the native fields
             Game1.player.CursorSlotItem = heldItem;
-
-            // Null it out now that we're done with this operation
             HoveredItem = null;
+
+            // Update cache after modification
+            UpdateInventoryCache();
+
+            if (StackEverythingRedux.Config.DebuggingMode)
+            {
+                sw.Stop();
+                Log.Trace($"[DEBUG] SplitSelectedItem: StackAmount={stackAmount}, Inventory before={beforeCount}, after={NonNullItemCount}, took={sw.ElapsedMilliseconds}ms");
+            }
         }
 
-        /// <summary>Runs the default shift+right-click behavior on the selected item.</summary>
+        /// <summary>Runs the default shift+right-click behavior.</summary>
         public void CancelSplit()
-       {
+        {
             if (Initialized && HoveredItem != null)
             {
-                // Split with the default amount to simulate the default behaviour
                 SplitSelectedItem(GetDefaultSplitStackAmount());
-
-                // Null it out now that we're done with this operation
-                HoveredItem = null;
             }
         }
 
-        /// <summary>Gets the stack amount you would usually have when shift+right-clicking.</summary>
+        /// <summary>Gets the default split stack amount for shift+right-click.</summary>
         public int GetDefaultSplitStackAmount()
         {
-            // +1 before /2 will round UP the result, the intention of original code
             return (HoveredItem.Stack + 1) / 2;
         }
 
-        /// <summary>Removes an item from the native inventory</summary>
-        /// <param name="item">The item to remove.</param>
+        /// <summary>Removes an item from the inventory.</summary>
         private void RemoveItemFromInventory(Item item)
         {
-            int index = InventoryItems.IndexOf(item);
-            if (index >= 0 && index < InventoryItems.Count)
+            IList<Item> inventoryItems = NativeInventoryMenu.actualInventory;
+            for (int i = 0; i < inventoryItems.Count; i++)
             {
-                InventoryItems[index] = null;
+                if (inventoryItems[i] == item)
+                {
+                    inventoryItems[i] = null;
+                    NonNullItemCount--;
+                    if (StackEverythingRedux.Config.DebuggingMode)
+                    {
+                        Log.Trace($"[DEBUG] RemoveItemFromInventory: Removed item at index {i}, Inventory size now = {NonNullItemCount}");
+                    }
+                    break;
+                }
             }
         }
     }

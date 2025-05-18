@@ -1,3 +1,4 @@
+//StackEverythingRedux.cs
 using HarmonyLib;
 using StackEverythingRedux.MenuHandlers;
 using StackEverythingRedux.MenuHandlers.GameMenuHandlers;
@@ -202,7 +203,8 @@ namespace StackEverythingRedux
         /// <param name="handler">The handler for the new menu</param>
         private void EnqueueMenuHandlerOpener(IClickableMenu newMenu, IMenuHandler handler)
         {
-            if (WaitOpenTicks > 0)
+            // Prevent enqueuing if already waiting for this menu
+            if (WaitOpenTicks > 0 && MenuToHandle == newMenu)
             {
                 return;
             }
