@@ -12,6 +12,7 @@ namespace StackEverythingRedux.MenuHandlers
         : IMenuHandler where TMenuType : IClickableMenu
     {
         private const float RIGHT_CLICK_POLLING_INTVL = 650f;
+        private const int UI_UPDATE_THROTTLE_MS = 16; // ~60fps
 
         /// <summary>The inventory handler.</summary>
         protected readonly InventoryHandler InvHandler = new();
@@ -32,6 +33,7 @@ namespace StackEverythingRedux.MenuHandlers
         private bool IsMenuOpen = false;
 
         private int updateCounter = 0;
+        private long _lastUIUpdate;
 
         /// <summary>Null constructor that currently only does logging if DEBUG</summary>
         public BaseMenuHandler()
@@ -290,6 +292,45 @@ namespace StackEverythingRedux.MenuHandlers
         protected bool IsModifierKeyDown()
         {
             return StaticConfig.ModifierKeys.Any(StackEverythingRedux.Input.IsDown);//return Mod.Input.IsDown(SButton.LeftAlt) || Mod.Input.IsDown(SButton.LeftShift);
+        }
+
+        protected virtual void UpdateUI()
+        {
+            long currentTime = System.Environment.TickCount64;
+            if (currentTime - _lastUIUpdate < UI_UPDATE_THROTTLE_MS)
+            {
+                return; // Skip update if too soon
+            }
+            _lastUIUpdate = currentTime;
+
+            // Perform UI updates
+            if (SplitMenu != null)
+            {
+                SplitMenu.update();
+            }
+        }
+
+        protected virtual bool TryOpenSplitMenu(IShopAction shopAction)
+        {
+            if (!CanOpenSplitMenu())
+            {
+                return EInputHandled.NotHandled;
+            }
+
+            try
+            {
+                if (shopAction.CanPerformAction())
+                {
+                    SplitMenu = new StackSplitMenu(OnStackAmountReceived, shopAction.StackAmount);
+                    return EInputHandled.Consumed;
+                }
+            }
+            catch (Exception e)
+            {
+                Log.Error($"[{nameof(BaseMenuHandler<TMenuType>)}.{nameof(TryOpenSplitMenu)}] Failed to open split menu:\n{e}");
+            }
+
+            return EInputHandled.NotHandled;
         }
     }
 }

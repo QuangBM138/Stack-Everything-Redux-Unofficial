@@ -3,6 +3,7 @@ using StardewValley;
 using StardewValley.Menus;
 using System.Diagnostics;
 using SFarmer = StardewValley.Farmer;
+using System;
 
 namespace StackEverythingRedux.MenuHandlers
 {
@@ -175,30 +176,29 @@ namespace StackEverythingRedux.MenuHandlers
             Item heldItem = HeldItem;
             if (heldItem != null)
             {
-                // update held item stack and item stack
-                //int numCurrentlyHeld = heldItem.Stack; // How many we're actually holding.
-                //int numInPile = this.HoverItem.Stack + item.Stack;
+                // Optimize stack calculations
                 int wantToHold = Math.Min(TotalItems, StackAmount);
-
-                HoverItem.Stack = TotalItems - wantToHold;
-                heldItem.Stack = wantToHold;
-
-                item.Stack = wantToHold;
-
-                // Remove the empty item from the inventory
-                if (HoverItem.Stack <= 0)
+                
+                // Batch update stacks to minimize UI updates
+                using(var batchUpdate = new BatchInventoryUpdate(inventoryMenu))
                 {
-                    int index = inventoryMenu.actualInventory.IndexOf(HoverItem);
-                    if (index > -1)
+                    HoverItem.Stack = TotalItems - wantToHold;
+                    heldItem.Stack = wantToHold;
+                    item.Stack = wantToHold;
+
+                    // Remove empty items efficiently
+                    if (HoverItem.Stack <= 0)
                     {
-                        inventoryMenu.actualInventory[index] = null;
+                        int index = inventoryMenu.actualInventory.IndexOf(HoverItem);
+                        if (index > -1)
+                        {
+                            inventoryMenu.actualInventory[index] = null;
+                        }
                     }
                 }
             }
 
             RestoreNativeCallbacks();
-
-            // Update stack to the amount set from OnStackAmountReceived
             callback?.Invoke(item, who);
         }
 
@@ -266,6 +266,31 @@ namespace StackEverythingRedux.MenuHandlers
             catch (Exception e)
             {
                 Log.Error($"[{nameof(ItemGrabMenuHandler)}.{nameof(RestoreNativeCallbacks)}] Failed to restore native callbacks:\n{e}");
+            }
+        }
+
+        // Helper class for batching inventory updates
+        private class BatchInventoryUpdate : IDisposable
+        {
+            private readonly InventoryMenu _menu;
+            private bool _disposed;
+
+            public BatchInventoryUpdate(InventoryMenu menu)
+            {
+                _menu = menu;
+                // Disable UI updates
+                _menu.suppressInventoryUpdates = true;
+            }
+
+            public void Dispose()
+            {
+                if (!_disposed)
+                {
+                    // Re-enable and trigger single UI update
+                    _menu.suppressInventoryUpdates = false;
+                    _menu.UpdateInventoryDisplay();
+                    _disposed = true;
+                }
             }
         }
     }

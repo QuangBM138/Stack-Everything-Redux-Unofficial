@@ -29,10 +29,10 @@ namespace StackEverythingRedux.MenuHandlers
 
         /// <summary>Cached inventory items to avoid frequent allocations.</summary>
         private readonly List<Item> CachedInventoryItems = new List<Item>();
-
-        /// <summary>Tracks the last known inventory state to detect changes.</summary>
-        private int LastInventoryHash;
-
+        
+        /// <summary>Tracks the last known inventory state</summary>
+        private string LastInventoryState = string.Empty;
+        
         /// <summary>Cached count of non-null items in the inventory.</summary>
         private int NonNullItemCount;
 
@@ -63,23 +63,26 @@ namespace StackEverythingRedux.MenuHandlers
         public void UpdateInventoryCache()
         {
             IList<Item> actualInventory = NativeInventoryMenu.actualInventory;
-            int currentHash = ComputeInventoryHash(actualInventory);
+            string currentState = GetInventoryState(actualInventory);
 
-            if (currentHash != LastInventoryHash || CachedInventoryItems.Count != actualInventory.Count)
+            // Only update if inventory state has changed
+            if (currentState != LastInventoryState || CachedInventoryItems.Count != actualInventory.Count)
             {
                 CachedInventoryItems.Clear();
-                CachedInventoryItems.AddRange(actualInventory);
-                LastInventoryHash = currentHash;
-
-                // Update non-null item count without LINQ
                 NonNullItemCount = 0;
-                for (int i = 0; i < CachedInventoryItems.Count; i++)
+
+                // Update cache in a single pass
+                for (int i = 0; i < actualInventory.Count; i++)
                 {
-                    if (CachedInventoryItems[i] != null)
+                    Item item = actualInventory[i];
+                    CachedInventoryItems.Add(item);
+                    if (item != null)
                     {
                         NonNullItemCount++;
                     }
                 }
+
+                LastInventoryState = currentState;
 
                 if (StackEverythingRedux.Config.DebuggingMode)
                 {
@@ -88,23 +91,20 @@ namespace StackEverythingRedux.MenuHandlers
             }
         }
 
-        /// <summary>Computes a simple hash of the inventory to detect changes.</summary>
-        private int ComputeInventoryHash(IList<Item> inventory)
+        /// <summary>Gets a string representation of inventory state for quick comparison</summary>
+        private string GetInventoryState(IList<Item> inventory)
         {
-            int hash = 17;
+            // Use StringBuilder for better string concatenation performance
+            System.Text.StringBuilder sb = new System.Text.StringBuilder();
             for (int i = 0; i < inventory.Count; i++)
             {
                 Item item = inventory[i];
-                unchecked
+                if (item != null)
                 {
-                    hash = hash * 23 + (item?.GetHashCode() ?? 0);
-                    if (item != null)
-                    {
-                        hash = hash * 23 + item.Stack;
-                    }
+                    sb.Append($"{item.Name}:{item.Stack};");
                 }
             }
-            return hash;
+            return sb.ToString();
         }
 
         /// <summary>Updates the bounds of the inventory interface.</summary>

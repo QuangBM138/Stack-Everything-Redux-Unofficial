@@ -1,6 +1,8 @@
 //GameMenuPageHandler.cs
+using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
+using System;
 
 namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
 {
@@ -17,6 +19,17 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
 
         /// <summary>The native page this handler is for.</summary>
         protected TPageType MenuPage { get; private set; }
+
+        // Cache reflected fields
+        private static readonly IReflectedField<InventoryMenu> _inventoryField;
+        private static readonly IReflectedField<Item> _hoveredItemField;
+        
+        static GameMenuPageHandler()
+        {
+            // Initialize reflection cache once
+            _inventoryField = StackEverythingRedux.Reflection.GetField<IClickableMenu, InventoryMenu>("inventory");
+            _hoveredItemField = StackEverythingRedux.Reflection.GetField<IClickableMenu, Item>("hoveredItem");
+        }
 
         /// <summary>Null constructor that currently only logs instantiation</summary>
         public GameMenuPageHandler()
@@ -59,17 +72,14 @@ namespace StackEverythingRedux.MenuHandlers.GameMenuHandlers
         {
             try
             {
-                // Have to use Reflection here because IClickableMenu does not define .inventory nor .hoveredItem
-                // (Subclasses of IClickableMenu that have .HasInventory == true DO define .inventory & .hoveredItem,
-                // but they do not define an interface for that, so it's either trying to cast to those subclasses
-                // one-by-one, or simply use Reflection to fetch the fields.
-                InventoryMenu inventoryMenu = StackEverythingRedux.Reflection.GetField<IClickableMenu>(MenuPage, "inventory").GetValue() as InventoryMenu;
-                StardewModdingAPI.IReflectedField<Item> hoveredItemField = StackEverythingRedux.Reflection.GetField<Item>(MenuPage, "hoveredItem");
-                Log.TraceIfD(
-                    $"[{nameof(GameMenuPageHandler<TPageType>)}.{nameof(InitInventory)}] Initializing InventoryHandler " +
-                    $"for menu = {inventoryMenu}, hovered = {hoveredItemField}"
+                InventoryMenu inventoryMenu = _inventoryField.GetValue(MenuPage);
+                if (inventoryMenu != null)
+                {
+                    Log.TraceIfD(
+                        $"[{nameof(GameMenuPageHandler<TPageType>)}.{nameof(InitInventory)}] Initializing InventoryHandler"
                     );
-                InventoryHandler.Init(inventoryMenu, hoveredItemField);
+                    InventoryHandler.Init(inventoryMenu, _hoveredItemField);
+                }
             }
             catch (Exception e)
             {
